@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Franciscan Woods HOA - Project Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================
+       RESET & BASE
+       ============================================ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 18px;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #F5F3EF;
+      color: #2D2D2D;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ============================================
+       HEADER
+       ============================================ */
+    .header {
+      background: #2C3E2D;
+      color: #fff;
+      padding: 1.25rem 1.5rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .header-inner {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .header h1 {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .header .subtitle {
+      font-size: 0.85rem;
+      opacity: 0.8;
+      font-weight: 400;
+      margin-top: 0.1rem;
+    }
+
+    /* ============================================
+       MAIN CONTAINER
+       ============================================ */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.25rem 1rem 3rem;
+    }
+
+    /* ============================================
+       SUMMARY CHIPS
+       ============================================ */
+    .summary-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .summary-chip .count {
+      font-weight: 700;
+    }
+
+    /* ============================================
+       FILTER BUTTONS
+       ============================================ */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .filter-btn {
+      padding: 0.4rem 0.9rem;
+      border: 2px solid #C5C0B6;
+      border-radius: 999px;
+      background: #fff;
+      color: #4A4A4A;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .filter-btn:hover {
+      border-color: #2C3E2D;
+      color: #2C3E2D;
+    }
+
+    .filter-btn.active {
+      background: #2C3E2D;
+      border-color: #2C3E2D;
+      color: #fff;
+    }
+
+    /* ============================================
+       PROJECT CARDS
+       ============================================ */
+    .cards {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .card:hover {
+      box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+    }
+
+    .card-header {
+      padding: 1rem 1.25rem 0.75rem;
+    }
+
+    .card-top-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-title {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #1A1A1A;
+      line-height: 1.3;
+    }
+
+    .badges {
+      display: flex;
+      gap: 0.4rem;
+      flex-shrink: 0;
+      align-items: center;
+    }
+
+    .badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    /* Status badges */
+    .badge-in-progress { background: #D4740E; color: #fff; }
+    .badge-planning { background: #7D6BA6; color: #fff; }
+    .badge-collecting-bids { background: #2874A6; color: #fff; }
+    .badge-scheduled { background: #2E86AB; color: #fff; }
+    .badge-complete { background: #3D6B4F; color: #fff; }
+
+    /* Urgency badges */
+    .urgency-emergency { background: #C0392B; color: #fff; }
+    .urgency-high { background: #E67E22; color: #fff; }
+    .urgency-medium { background: #2874A6; color: #fff; }
+    .urgency-low { background: #95A5A6; color: #fff; }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 1rem;
+      font-size: 0.82rem;
+      color: #666;
+    }
+
+    .card-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .card-meta .label {
+      font-weight: 600;
+      color: #888;
+    }
+
+    /* Next Action bar */
+    .next-action {
+      background: #F8F6F2;
+      border-top: 1px solid #EBE8E2;
+      padding: 0.7rem 1.25rem;
+      font-size: 0.82rem;
+    }
+
+    .next-action-title {
+      font-weight: 700;
+      color: #2C3E2D;
+      margin-bottom: 0.2rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .next-action-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem 0.75rem;
+      color: #444;
+    }
+
+    .next-action-content .action-text {
+      font-weight: 600;
+      color: #1A1A1A;
+      flex-basis: 100%;
+    }
+
+    .next-action-content .action-meta {
+      color: #777;
+    }
+
+    .next-action-content .action-due {
+      font-weight: 600;
+    }
+
+    .overdue {
+      color: #C0392B !important;
+    }
+
+    /* Expand indicator */
+    .expand-indicator {
+      text-align: center;
+      padding: 0.3rem;
+      color: #BBB;
+      font-size: 0.75rem;
+      transition: transform 0.2s ease;
+    }
+
+    .card.expanded .expand-indicator {
+      transform: rotate(180deg);
+    }
+
+    /* Expanded details */
+    .card-details {
+      display: none;
+      padding: 0 1.25rem 1rem;
+      border-top: 1px solid #EBE8E2;
+    }
+
+    .card.expanded .card-details {
+      display: block;
+    }
+
+    .detail-section {
+      margin-top: 0.75rem;
+    }
+
+    .detail-section-title {
+      font-weight: 700;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #2C3E2D;
+      margin-bottom: 0.3rem;
+    }
+
+    .detail-section p {
+      font-size: 0.88rem;
+      color: #444;
+    }
+
+    .budget-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.5rem;
+    }
+
+    .budget-item {
+      background: #F8F6F2;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+    }
+
+    .budget-item .budget-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      font-weight: 600;
+    }
+
+    .budget-item .budget-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1A1A1A;
+    }
+
+    /* ============================================
+       LOADING & ERROR STATES
+       ============================================ */
+    .state-message {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+
+    .state-message .icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .state-message h2 {
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .state-message p {
+      color: #777;
+      font-size: 0.9rem;
+    }
+
+    .state-message .retry-btn {
+      margin-top: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: #2C3E2D;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .last-updated {
+      text-align: center;
+      font-size: 0.72rem;
+      color: #AAA;
+      margin-top: 2rem;
+    }
+
+    /* ============================================
+       RESPONSIVE
+       ============================================ */
+    @media (max-width: 600px) {
+      html {
+        font-size: 16px;
+      }
+
+      .header {
+        padding: 1rem;
+      }
+
+      .header h1 {
+        font-size: 1.3rem;
+      }
+
+      .container {
+        padding: 1rem 0.75rem 2rem;
+      }
+
+      .card-header {
+        padding: 0.85rem 1rem 0.65rem;
+      }
+
+      .next-action {
+        padding: 0.6rem 1rem;
+      }
+
+      .card-details {
+        padding: 0 1rem 0.85rem;
+      }
+
+      .card-top-row {
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .badges {
+        align-self: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <h1>Franciscan Woods HOA</h1>
+      <div class="subtitle">Project Tracker</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="summary-chips" class="summary-chips"></div>
+    <div id="filters" class="filters"></div>
+    <div id="content"></div>
+    <div id="last-updated" class="last-updated"></div>
+  </main>
+
+<script>
+// ============================================
+// CONFIGURATION - Update these values
+// ============================================
+const SHEET_ID = 'your-google-sheet-id-here';
+const API_KEY = 'your-google-api-key-here';
+const SHEET_NAME = 'Projects';
+const REFRESH_INTERVAL_MS = 300000; // 5 minutes
+
+// ============================================
+// CONSTANTS
+// ============================================
+const STATUS_ORDER = ['In Progress', 'Collecting Bids', 'Scheduled', 'Planning', 'Complete'];
+
+const STATUS_COLORS = {
+  'In Progress':     '#D4740E',
+  'Planning':        '#7D6BA6',
+  'Collecting Bids': '#2874A6',
+  'Scheduled':       '#2E86AB',
+  'Complete':        '#3D6B4F'
+};
+
+const STATUS_CLASSES = {
+  'In Progress':     'badge-in-progress',
+  'Planning':        'badge-planning',
+  'Collecting Bids': 'badge-collecting-bids',
+  'Scheduled':       'badge-scheduled',
+  'Complete':        'badge-complete'
+};
+
+const URGENCY_ORDER = { 'Emergency': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+
+const URGENCY_CLASSES = {
+  'Emergency': 'urgency-emergency',
+  'High':      'urgency-high',
+  'Medium':    'urgency-medium',
+  'Low':       'urgency-low'
+};
+
+// ============================================
+// STATE
+// ============================================
+let projects = [];
+let activeFilter = 'All';
+let refreshTimer = null;
+
+// ============================================
+// DATA FETCHING
+// ============================================
+async function fetchProjects() {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(SHEET_NAME)}?key=${API_KEY}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Google Sheets API error: ${response.status}`);
+  }
+  const data = await response.json();
+  const rows = data.values;
+  if (!rows || rows.length < 2) {
+    return [];
+  }
+  // First row is headers, rest is data
+  return rows.slice(1).map(row => ({
+    name:            row[0]  || '',
+    status:          row[1]  || '',
+    urgency:         row[2]  || '',
+    lead:            row[3]  || '',
+    units:           row[4]  || '',
+    category:        row[5]  || '',
+    description:     row[6]  || '',
+    nextAction:      row[7]  || '',
+    nextActionOwner: row[8]  || '',
+    nextActionDue:   row[9]  || '',
+    targetDate:      row[10] || '',
+    vendorsBids:     row[11] || '',
+    vendorSelected:  row[12] || '',
+    budgeted:        row[13] || '',
+    approved:        row[14] || '',
+    actual:          row[15] || '',
+    fundSource:      row[16] || '',
+    notes:           row[17] || ''
+  })).filter(p => p.name.trim() !== '');
+}
+
+// ============================================
+// SORTING
+// ============================================
+function sortProjects(list) {
+  return list.slice().sort((a, b) => {
+    // Completed projects go last
+    const aComplete = a.status === 'Complete' ? 1 : 0;
+    const bComplete = b.status === 'Complete' ? 1 : 0;
+    if (aComplete !== bComplete) return aComplete - bComplete;
+
+    // Then by urgency
+    const aUrg = URGENCY_ORDER[a.urgency] ?? 99;
+    const bUrg = URGENCY_ORDER[b.urgency] ?? 99;
+    return aUrg - bUrg;
+  });
+}
+
+// ============================================
+// FILTERING
+// ============================================
+function getFilteredProjects() {
+  if (activeFilter === 'All') return sortProjects(projects);
+  return sortProjects(projects.filter(p => p.status === activeFilter));
+}
+
+// ============================================
+// FORMATTING
+// ============================================
+function formatCurrency(val) {
+  if (!val) return '';
+  const num = parseFloat(val.replace(/[^0-9.-]/g, ''));
+  if (isNaN(num)) return val;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return parsed < today;
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ============================================
+// RENDERING - SUMMARY CHIPS
+// ============================================
+function renderSummaryChips() {
+  const container = document.getElementById('summary-chips');
+  const counts = {};
+  projects.forEach(p => {
+    counts[p.status] = (counts[p.status] || 0) + 1;
+  });
+
+  container.innerHTML = STATUS_ORDER
+    .filter(s => counts[s])
+    .map(s => `<span class="summary-chip" style="background:${STATUS_COLORS[s] || '#888'}">`
+      + `<span class="count">${counts[s]}</span> ${s}`
+      + `</span>`)
+    .join('');
+}
+
+// ============================================
+// RENDERING - FILTERS
+// ============================================
+function renderFilters() {
+  const container = document.getElementById('filters');
+  const statuses = STATUS_ORDER.filter(s => projects.some(p => p.status === s));
+  const buttons = ['All', ...statuses];
+
+  container.innerHTML = buttons.map(s => {
+    const label = s === 'All' ? 'All Projects' : s;
+    const cls = s === activeFilter ? 'filter-btn active' : 'filter-btn';
+    return `<button class="${cls}" data-filter="${escapeHtml(s)}">${escapeHtml(label)}</button>`;
+  }).join('');
+
+  container.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeFilter = btn.dataset.filter;
+      renderFilters();
+      renderCards();
+    });
+  });
+}
+
+// ============================================
+// RENDERING - CARDS
+// ============================================
+function renderCards() {
+  const container = document.getElementById('content');
+  const filtered = getFilteredProjects();
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="state-message"><div class="icon">&#128269;</div>'
+      + '<h2>No projects found</h2>'
+      + '<p>No projects match the current filter.</p></div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="cards">' + filtered.map(renderCard).join('') + '</div>';
+
+  container.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      card.classList.toggle('expanded');
+    });
+  });
+}
+
+function renderCard(project) {
+  const statusClass = STATUS_CLASSES[project.status] || '';
+  const urgencyClass = URGENCY_CLASSES[project.urgency] || '';
+  const dueOverdue = isOverdue(project.nextActionDue) && project.status !== 'Complete';
+
+  let detailSections = '';
+
+  if (project.description) {
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Description</div>
+      <p>${escapeHtml(project.description)}</p>
+    </div>`;
+  }
+
+  if (project.category) {
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Category</div>
+      <p>${escapeHtml(project.category)}</p>
+    </div>`;
+  }
+
+  if (project.fundSource) {
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Fund Source</div>
+      <p>${escapeHtml(project.fundSource)}</p>
+    </div>`;
+  }
+
+  if (project.vendorsBids) {
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Vendors &amp; Bids</div>
+      <p>${escapeHtml(project.vendorsBids)}</p>
+    </div>`;
+  }
+
+  if (project.vendorSelected) {
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Vendor Selected</div>
+      <p>${escapeHtml(project.vendorSelected)}</p>
+    </div>`;
+  }
+
+  const hasBudget = project.budgeted || project.approved || project.actual;
+  if (hasBudget) {
+    let budgetItems = '';
+    if (project.budgeted) {
+      budgetItems += `<div class="budget-item">
+        <div class="budget-label">Budgeted</div>
+        <div class="budget-value">${escapeHtml(formatCurrency(project.budgeted))}</div>
+      </div>`;
+    }
+    if (project.approved) {
+      budgetItems += `<div class="budget-item">
+        <div class="budget-label">Approved</div>
+        <div class="budget-value">${escapeHtml(formatCurrency(project.approved))}</div>
+      </div>`;
+    }
+    if (project.actual) {
+      budgetItems += `<div class="budget-item">
+        <div class="budget-label">Actual</div>
+        <div class="budget-value">${escapeHtml(formatCurrency(project.actual))}</div>
+      </div>`;
+    }
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Budget</div>
+      <div class="budget-grid">${budgetItems}</div>
+    </div>`;
+  }
+
+  if (project.notes) {
+    detailSections += `<div class="detail-section">
+      <div class="detail-section-title">Notes</div>
+      <p>${escapeHtml(project.notes)}</p>
+    </div>`;
+  }
+
+  return `<div class="card">
+    <div class="card-header">
+      <div class="card-top-row">
+        <div class="card-title">${escapeHtml(project.name)}</div>
+        <div class="badges">
+          ${urgencyClass ? `<span class="badge ${urgencyClass}">${escapeHtml(project.urgency)}</span>` : ''}
+          ${statusClass ? `<span class="badge ${statusClass}">${escapeHtml(project.status)}</span>` : ''}
+        </div>
+      </div>
+      <div class="card-meta">
+        ${project.lead ? `<span><span class="label">Lead:</span> ${escapeHtml(project.lead)}</span>` : ''}
+        ${project.units ? `<span><span class="label">Units:</span> ${escapeHtml(project.units)}</span>` : ''}
+        ${project.targetDate ? `<span><span class="label">Target:</span> ${escapeHtml(project.targetDate)}</span>` : ''}
+      </div>
+    </div>
+    ${project.nextAction ? `<div class="next-action">
+      <div class="next-action-title">Next Action</div>
+      <div class="next-action-content">
+        <span class="action-text">${escapeHtml(project.nextAction)}</span>
+        ${project.nextActionOwner ? `<span class="action-meta">${escapeHtml(project.nextActionOwner)}</span>` : ''}
+        ${project.nextActionDue ? `<span class="action-due ${dueOverdue ? 'overdue' : ''}">${escapeHtml(project.nextActionDue)}</span>` : ''}
+      </div>
+    </div>` : ''}
+    <div class="expand-indicator">&#9660;</div>
+    ${detailSections ? `<div class="card-details">${detailSections}</div>` : ''}
+  </div>`;
+}
+
+// ============================================
+// LOADING & ERROR STATES
+// ============================================
+function showLoading() {
+  document.getElementById('content').innerHTML =
+    '<div class="state-message"><div class="icon">&#9203;</div>'
+    + '<h2>Loading projects...</h2>'
+    + '<p>Fetching data from Google Sheets</p></div>';
+}
+
+function showError(msg) {
+  document.getElementById('content').innerHTML =
+    '<div class="state-message"><div class="icon">&#9888;&#65039;</div>'
+    + `<h2>Unable to load projects</h2>`
+    + `<p>${escapeHtml(msg)}</p>`
+    + '<button class="retry-btn" onclick="loadData()">Try Again</button></div>';
+}
+
+// ============================================
+// MAIN LOAD
+// ============================================
+async function loadData() {
+  showLoading();
+  try {
+    projects = await fetchProjects();
+    activeFilter = 'All';
+    renderSummaryChips();
+    renderFilters();
+    renderCards();
+    document.getElementById('last-updated').textContent =
+      'Last updated: ' + new Date().toLocaleTimeString();
+  } catch (err) {
+    console.error('Failed to fetch projects:', err);
+    showError(err.message || 'Could not reach Google Sheets. Check your internet connection and try again.');
+  }
+}
+
+// ============================================
+// INIT
+// ============================================
+loadData();
+refreshTimer = setInterval(loadData, REFRESH_INTERVAL_MS);
+</script>
+
+</body>
+</html>
