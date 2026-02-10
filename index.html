@@ -189,46 +189,33 @@
       font-size: 0.8rem;
       font-weight: 600;
       color: #fff;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+      opacity: 0.7;
+    }
+
+    .summary-chip:hover {
+      opacity: 0.9;
+    }
+
+    .summary-chip.active {
+      opacity: 1;
+      border-color: #1A1A1A;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .chip-all {
+      background: #555;
+      color: #fff;
     }
 
     .summary-chip .count {
       font-weight: 700;
     }
 
-    /* ============================================
-       FILTER BUTTONS
-       ============================================ */
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .filter-btn {
-      padding: 0.4rem 0.9rem;
-      border: 2px solid #C5C0B6;
-      border-radius: 999px;
-      background: #fff;
-      color: #4A4A4A;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .filter-btn:hover {
-      border-color: #2C3E2D;
-      color: #2C3E2D;
-    }
-
-    .filter-btn.active {
-      background: #2C3E2D;
-      border-color: #2C3E2D;
-      color: #fff;
-    }
+    /* (filter buttons merged into summary chips) */
 
     /* ============================================
        PROJECT CARDS
@@ -619,7 +606,6 @@
     <main class="container">
       <div id="summary-chips" class="summary-chips"></div>
       <div id="budget-summary" class="budget-summary" style="display:none;"></div>
-      <div id="filters" class="filters"></div>
       <div class="toolbar">
         <label class="toggle-completed">
           <input type="checkbox" id="show-completed"> Show completed projects
@@ -779,21 +765,37 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// RENDERING - SUMMARY CHIPS
+// RENDERING - SUMMARY CHIPS (also act as filters)
 // ============================================
 function renderSummaryChips() {
-  const container = document.getElementById('summary-chips');
-  const counts = {};
-  projects.forEach(p => {
+  var container = document.getElementById('summary-chips');
+  var counts = {};
+  var total = 0;
+  projects.forEach(function(p) {
     counts[p.status] = (counts[p.status] || 0) + 1;
+    total++;
   });
 
-  container.innerHTML = STATUS_ORDER
-    .filter(s => counts[s])
-    .map(s => `<span class="summary-chip" style="background:${STATUS_COLORS[s] || '#888'}">`
-      + `<span class="count">${counts[s]}</span> ${s}`
-      + `</span>`)
-    .join('');
+  var html = '<span class="summary-chip chip-all' + (activeFilter === 'All' ? ' active' : '') + '" data-filter="All">'
+    + '<span class="count">' + total + '</span> All'
+    + '</span>';
+
+  STATUS_ORDER.forEach(function(s) {
+    if (!counts[s]) return;
+    html += '<span class="summary-chip' + (activeFilter === s ? ' active' : '') + '" style="background:' + (STATUS_COLORS[s] || '#888') + '" data-filter="' + s + '">'
+      + '<span class="count">' + counts[s] + '</span> ' + s
+      + '</span>';
+  });
+
+  container.innerHTML = html;
+
+  container.querySelectorAll('.summary-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      activeFilter = chip.dataset.filter;
+      renderSummaryChips();
+      renderCards();
+    });
+  });
 }
 
 // ============================================
@@ -838,29 +840,6 @@ function renderBudgetSummary() {
     '<div class="budget-summary-item"><div class="budget-summary-label">Total Budgeted</div><div class="budget-summary-value">' + fmt(totalBudgeted) + '</div></div>' +
     '<div class="budget-summary-item"><div class="budget-summary-label">Total Approved</div><div class="budget-summary-value">' + fmt(totalApproved) + '</div></div>' +
     '<div class="budget-summary-item"><div class="budget-summary-label">Total Spent</div><div class="budget-summary-value">' + fmt(totalActual) + '</div></div>';
-}
-
-// ============================================
-// RENDERING - FILTERS
-// ============================================
-function renderFilters() {
-  const container = document.getElementById('filters');
-  const statuses = STATUS_ORDER.filter(s => projects.some(p => p.status === s));
-  const buttons = ['All', ...statuses];
-
-  container.innerHTML = buttons.map(s => {
-    const label = s === 'All' ? 'All Projects' : s;
-    const cls = s === activeFilter ? 'filter-btn active' : 'filter-btn';
-    return `<button class="${cls}" data-filter="${escapeHtml(s)}">${escapeHtml(label)}</button>`;
-  }).join('');
-
-  container.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeFilter = btn.dataset.filter;
-      renderFilters();
-      renderCards();
-    });
-  });
 }
 
 // ============================================
@@ -1018,7 +997,6 @@ async function loadData() {
     renderSummaryChips();
     renderBudgetSummary();
     renderOverdueWarning();
-    renderFilters();
     renderCards();
     document.getElementById('last-updated').textContent =
       'Last updated: ' + new Date().toLocaleTimeString();
@@ -1035,7 +1013,7 @@ document.getElementById('show-completed').addEventListener('change', function() 
   showCompleted = this.checked;
   if (activeFilter === 'Complete' && !showCompleted) {
     activeFilter = 'All';
-    renderFilters();
+    renderSummaryChips();
   }
   renderCards();
 });
