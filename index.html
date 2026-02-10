@@ -189,45 +189,72 @@
       font-size: 0.8rem;
       font-weight: 600;
       color: #fff;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+      opacity: 0.7;
+    }
+
+    .summary-chip:hover {
+      opacity: 0.9;
+    }
+
+    .summary-chip.active {
+      opacity: 1;
+      border-color: #1A1A1A;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .chip-all {
+      background: #555;
+      color: #fff;
     }
 
     .summary-chip .count {
       font-weight: 700;
     }
 
-    /* ============================================
-       FILTER BUTTONS
-       ============================================ */
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-bottom: 1.5rem;
+    .chip-divider {
+      width: 1px;
+      height: 1.5rem;
+      background: #CCC;
+      margin: 0 0.15rem;
+      flex-shrink: 0;
     }
 
-    .filter-btn {
-      padding: 0.4rem 0.9rem;
-      border: 2px solid #C5C0B6;
-      border-radius: 999px;
-      background: #fff;
-      color: #4A4A4A;
+    /* ============================================
+       BUDGET TOGGLE
+       ============================================ */
+    .budget-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: none;
+      border: 1px solid #DDD;
+      border-radius: 8px;
+      padding: 0.3rem 0.7rem;
       font-family: 'DM Sans', sans-serif;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
+      color: #888;
       cursor: pointer;
-      transition: all 0.15s ease;
+      margin-bottom: 0.75rem;
       -webkit-tap-highlight-color: transparent;
     }
 
-    .filter-btn:hover {
-      border-color: #2C3E2D;
-      color: #2C3E2D;
+    .budget-toggle-btn:hover {
+      color: #555;
+      border-color: #AAA;
     }
 
-    .filter-btn.active {
-      background: #2C3E2D;
-      border-color: #2C3E2D;
-      color: #fff;
+    .budget-toggle-btn .arrow {
+      transition: transform 0.2s ease;
+      font-size: 0.6rem;
+    }
+
+    .budget-toggle-btn.open .arrow {
+      transform: rotate(180deg);
     }
 
     /* ============================================
@@ -477,6 +504,78 @@
     }
 
     /* ============================================
+       TOOLBAR (toggle + overdue warning)
+       ============================================ */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .toggle-completed {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #666;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .toggle-completed input {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: #2C3E2D;
+      cursor: pointer;
+    }
+
+    .overdue-warning {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #C0392B;
+      background: #FDECEA;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+    }
+
+    /* ============================================
+       BUDGET SUMMARY BAR
+       ============================================ */
+    .budget-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      background: #fff;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .budget-summary-item {
+      text-align: center;
+    }
+
+    .budget-summary-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      font-weight: 600;
+    }
+
+    .budget-summary-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1A1A1A;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* ============================================
        RESPONSIVE
        ============================================ */
     @media (max-width: 600px) {
@@ -546,7 +645,16 @@
 
     <main class="container">
       <div id="summary-chips" class="summary-chips"></div>
-      <div id="filters" class="filters"></div>
+      <button id="budget-toggle" class="budget-toggle-btn" style="display:none;">
+        <span class="arrow">&#9660;</span> Budget Overview
+      </button>
+      <div id="budget-summary" class="budget-summary" style="display:none;"></div>
+      <div class="toolbar">
+        <label class="toggle-completed">
+          <input type="checkbox" id="show-completed"> Show completed projects
+        </label>
+        <div id="overdue-warning"></div>
+      </div>
       <div id="content"></div>
       <div id="last-updated" class="last-updated"></div>
     </main>
@@ -602,6 +710,7 @@ const URGENCY_CLASSES = {
 // ============================================
 let projects = [];
 let activeFilter = 'All';
+let showCompleted = false;
 let refreshTimer = null;
 
 // ============================================
@@ -662,8 +771,15 @@ function sortProjects(list) {
 // FILTERING
 // ============================================
 function getFilteredProjects() {
-  if (activeFilter === 'All') return sortProjects(projects);
-  return sortProjects(projects.filter(p => p.status === activeFilter));
+  var list = projects;
+  // Hide completed unless toggled on (or explicitly filtering to Complete)
+  if (!showCompleted && activeFilter !== 'Complete') {
+    list = list.filter(function(p) { return p.status !== 'Complete'; });
+  }
+  if (activeFilter !== 'All') {
+    list = list.filter(function(p) { return p.status === activeFilter; });
+  }
+  return sortProjects(list);
 }
 
 // ============================================
@@ -692,45 +808,111 @@ function escapeHtml(text) {
 }
 
 // ============================================
-// RENDERING - SUMMARY CHIPS
+// RENDERING - SUMMARY CHIPS (also act as filters)
 // ============================================
 function renderSummaryChips() {
-  const container = document.getElementById('summary-chips');
-  const counts = {};
-  projects.forEach(p => {
+  var container = document.getElementById('summary-chips');
+  var counts = {};
+  var activeTotal = 0;
+  projects.forEach(function(p) {
     counts[p.status] = (counts[p.status] || 0) + 1;
+    if (p.status !== 'Complete') activeTotal++;
   });
 
-  container.innerHTML = STATUS_ORDER
-    .filter(s => counts[s])
-    .map(s => `<span class="summary-chip" style="background:${STATUS_COLORS[s] || '#888'}">`
-      + `<span class="count">${counts[s]}</span> ${s}`
-      + `</span>`)
-    .join('');
-}
+  // "All Active" chip — only counts non-completed projects
+  var html = '<span class="summary-chip chip-all' + (activeFilter === 'All' ? ' active' : '') + '" data-filter="All">'
+    + '<span class="count">' + activeTotal + '</span> Active'
+    + '</span>';
 
-// ============================================
-// RENDERING - FILTERS
-// ============================================
-function renderFilters() {
-  const container = document.getElementById('filters');
-  const statuses = STATUS_ORDER.filter(s => projects.some(p => p.status === s));
-  const buttons = ['All', ...statuses];
+  // Active status chips
+  STATUS_ORDER.forEach(function(s) {
+    if (!counts[s] || s === 'Complete') return;
+    html += '<span class="summary-chip' + (activeFilter === s ? ' active' : '') + '" style="background:' + (STATUS_COLORS[s] || '#888') + '" data-filter="' + s + '">'
+      + '<span class="count">' + counts[s] + '</span> ' + s
+      + '</span>';
+  });
 
-  container.innerHTML = buttons.map(s => {
-    const label = s === 'All' ? 'All Projects' : s;
-    const cls = s === activeFilter ? 'filter-btn active' : 'filter-btn';
-    return `<button class="${cls}" data-filter="${escapeHtml(s)}">${escapeHtml(label)}</button>`;
-  }).join('');
+  // Divider + Complete chip (if any completed projects exist)
+  if (counts['Complete']) {
+    html += '<span class="chip-divider"></span>';
+    html += '<span class="summary-chip' + (activeFilter === 'Complete' ? ' active' : '') + '" style="background:' + STATUS_COLORS['Complete'] + '" data-filter="Complete">'
+      + '<span class="count">' + counts['Complete'] + '</span> Complete'
+      + '</span>';
+  }
 
-  container.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeFilter = btn.dataset.filter;
-      renderFilters();
+  container.innerHTML = html;
+
+  container.querySelectorAll('.summary-chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      activeFilter = chip.dataset.filter;
+      // If clicking Complete, auto-enable the toggle
+      if (activeFilter === 'Complete') {
+        showCompleted = true;
+        document.getElementById('show-completed').checked = true;
+      }
+      renderSummaryChips();
       renderCards();
     });
   });
 }
+
+// ============================================
+// RENDERING - OVERDUE WARNING
+// ============================================
+function renderOverdueWarning() {
+  var container = document.getElementById('overdue-warning');
+  var count = 0;
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  projects.forEach(function(p) {
+    if (p.status === 'Complete') return;
+    if (!p.nextActionDue) return;
+    var d = new Date(p.nextActionDue);
+    if (!isNaN(d.getTime()) && d < today) count++;
+  });
+  if (count > 0) {
+    container.innerHTML = count + ' overdue action' + (count > 1 ? 's' : '');
+  } else {
+    container.innerHTML = '';
+  }
+}
+
+// ============================================
+// RENDERING - BUDGET SUMMARY
+// ============================================
+var budgetVisible = false;
+
+function renderBudgetSummary() {
+  var container = document.getElementById('budget-summary');
+  var toggleBtn = document.getElementById('budget-toggle');
+  var totalBudgeted = 0, totalApproved = 0, totalActual = 0;
+  var hasAny = false;
+  projects.forEach(function(p) {
+    if (p.budgeted) { totalBudgeted += parseFloat(p.budgeted.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
+    if (p.approved) { totalApproved += parseFloat(p.approved.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
+    if (p.actual) { totalActual += parseFloat(p.actual.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
+  });
+  if (!hasAny) {
+    container.style.display = 'none';
+    toggleBtn.style.display = 'none';
+    return;
+  }
+  var fmt = function(n) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  };
+  toggleBtn.style.display = 'inline-flex';
+  container.style.display = budgetVisible ? 'grid' : 'none';
+  toggleBtn.className = budgetVisible ? 'budget-toggle-btn open' : 'budget-toggle-btn';
+  container.innerHTML =
+    '<div class="budget-summary-item"><div class="budget-summary-label">Total Budgeted</div><div class="budget-summary-value">' + fmt(totalBudgeted) + '</div></div>' +
+    '<div class="budget-summary-item"><div class="budget-summary-label">Total Approved</div><div class="budget-summary-value">' + fmt(totalApproved) + '</div></div>' +
+    '<div class="budget-summary-item"><div class="budget-summary-label">Total Spent</div><div class="budget-summary-value">' + fmt(totalActual) + '</div></div>';
+}
+
+document.getElementById('budget-toggle').addEventListener('click', function() {
+  budgetVisible = !budgetVisible;
+  renderBudgetSummary();
+});
 
 // ============================================
 // RENDERING - CARDS
@@ -884,9 +1066,9 @@ async function loadData() {
   showLoading();
   try {
     projects = await fetchProjects();
-    activeFilter = 'All';
     renderSummaryChips();
-    renderFilters();
+    renderBudgetSummary();
+    renderOverdueWarning();
     renderCards();
     document.getElementById('last-updated').textContent =
       'Last updated: ' + new Date().toLocaleTimeString();
@@ -895,6 +1077,18 @@ async function loadData() {
     showError(err.message || 'Could not reach Google Sheets. Check your internet connection and try again.');
   }
 }
+
+// ============================================
+// COMPLETED TOGGLE
+// ============================================
+document.getElementById('show-completed').addEventListener('change', function() {
+  showCompleted = this.checked;
+  if (activeFilter === 'Complete' && !showCompleted) {
+    activeFilter = 'All';
+    renderSummaryChips();
+  }
+  renderCards();
+});
 
 // ============================================
 // PIN AUTHENTICATION
