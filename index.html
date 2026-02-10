@@ -902,7 +902,7 @@ async function loadData() {
 // ============================================
 // PIN AUTHENTICATION
 // ============================================
-async function hashPIN(pin) {
+async function computeHash(pin) {
   const encoded = new TextEncoder().encode(pin);
   const buffer = await crypto.subtle.digest('SHA-256', encoded);
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -910,7 +910,7 @@ async function hashPIN(pin) {
 
 // Expose to console so the user can generate new hashes
 window.hashPIN = async function(pin) {
-  const h = await hashPIN(pin);
+  const h = await computeHash(pin);
   console.log(`PIN hash for "${pin}": ${h}`);
   console.log('Replace PIN_HASH in the config with this value.');
   return h;
@@ -931,7 +931,7 @@ if (sessionStorage.getItem('fwhoa_auth') === 'true') {
     e.preventDefault();
     const input = document.getElementById('pin-input');
     const error = document.getElementById('pin-error');
-    const entered = await hashPIN(input.value);
+    const entered = await computeHash(input.value);
     if (entered === PIN_HASH) {
       sessionStorage.setItem('fwhoa_auth', 'true');
       showApp();
