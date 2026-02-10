@@ -477,6 +477,78 @@
     }
 
     /* ============================================
+       TOOLBAR (toggle + overdue warning)
+       ============================================ */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .toggle-completed {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: #666;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .toggle-completed input {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: #2C3E2D;
+      cursor: pointer;
+    }
+
+    .overdue-warning {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #C0392B;
+      background: #FDECEA;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+    }
+
+    /* ============================================
+       BUDGET SUMMARY BAR
+       ============================================ */
+    .budget-summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      background: #fff;
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .budget-summary-item {
+      text-align: center;
+    }
+
+    .budget-summary-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #999;
+      font-weight: 600;
+    }
+
+    .budget-summary-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1A1A1A;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* ============================================
        RESPONSIVE
        ============================================ */
     @media (max-width: 600px) {
@@ -546,7 +618,14 @@
 
     <main class="container">
       <div id="summary-chips" class="summary-chips"></div>
+      <div id="budget-summary" class="budget-summary" style="display:none;"></div>
       <div id="filters" class="filters"></div>
+      <div class="toolbar">
+        <label class="toggle-completed">
+          <input type="checkbox" id="show-completed"> Show completed projects
+        </label>
+        <div id="overdue-warning"></div>
+      </div>
       <div id="content"></div>
       <div id="last-updated" class="last-updated"></div>
     </main>
@@ -602,6 +681,7 @@ const URGENCY_CLASSES = {
 // ============================================
 let projects = [];
 let activeFilter = 'All';
+let showCompleted = false;
 let refreshTimer = null;
 
 // ============================================
@@ -662,8 +742,15 @@ function sortProjects(list) {
 // FILTERING
 // ============================================
 function getFilteredProjects() {
-  if (activeFilter === 'All') return sortProjects(projects);
-  return sortProjects(projects.filter(p => p.status === activeFilter));
+  var list = projects;
+  // Hide completed unless toggled on (or explicitly filtering to Complete)
+  if (!showCompleted && activeFilter !== 'Complete') {
+    list = list.filter(function(p) { return p.status !== 'Complete'; });
+  }
+  if (activeFilter !== 'All') {
+    list = list.filter(function(p) { return p.status === activeFilter; });
+  }
+  return sortProjects(list);
 }
 
 // ============================================
@@ -707,6 +794,50 @@ function renderSummaryChips() {
       + `<span class="count">${counts[s]}</span> ${s}`
       + `</span>`)
     .join('');
+}
+
+// ============================================
+// RENDERING - OVERDUE WARNING
+// ============================================
+function renderOverdueWarning() {
+  var container = document.getElementById('overdue-warning');
+  var count = 0;
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  projects.forEach(function(p) {
+    if (p.status === 'Complete') return;
+    if (!p.nextActionDue) return;
+    var d = new Date(p.nextActionDue);
+    if (!isNaN(d.getTime()) && d < today) count++;
+  });
+  if (count > 0) {
+    container.innerHTML = count + ' overdue action' + (count > 1 ? 's' : '');
+  } else {
+    container.innerHTML = '';
+  }
+}
+
+// ============================================
+// RENDERING - BUDGET SUMMARY
+// ============================================
+function renderBudgetSummary() {
+  var container = document.getElementById('budget-summary');
+  var totalBudgeted = 0, totalApproved = 0, totalActual = 0;
+  var hasAny = false;
+  projects.forEach(function(p) {
+    if (p.budgeted) { totalBudgeted += parseFloat(p.budgeted.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
+    if (p.approved) { totalApproved += parseFloat(p.approved.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
+    if (p.actual) { totalActual += parseFloat(p.actual.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
+  });
+  if (!hasAny) { container.style.display = 'none'; return; }
+  var fmt = function(n) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  };
+  container.style.display = 'grid';
+  container.innerHTML =
+    '<div class="budget-summary-item"><div class="budget-summary-label">Total Budgeted</div><div class="budget-summary-value">' + fmt(totalBudgeted) + '</div></div>' +
+    '<div class="budget-summary-item"><div class="budget-summary-label">Total Approved</div><div class="budget-summary-value">' + fmt(totalApproved) + '</div></div>' +
+    '<div class="budget-summary-item"><div class="budget-summary-label">Total Spent</div><div class="budget-summary-value">' + fmt(totalActual) + '</div></div>';
 }
 
 // ============================================
@@ -884,8 +1015,9 @@ async function loadData() {
   showLoading();
   try {
     projects = await fetchProjects();
-    activeFilter = 'All';
     renderSummaryChips();
+    renderBudgetSummary();
+    renderOverdueWarning();
     renderFilters();
     renderCards();
     document.getElementById('last-updated').textContent =
@@ -895,6 +1027,18 @@ async function loadData() {
     showError(err.message || 'Could not reach Google Sheets. Check your internet connection and try again.');
   }
 }
+
+// ============================================
+// COMPLETED TOGGLE
+// ============================================
+document.getElementById('show-completed').addEventListener('change', function() {
+  showCompleted = this.checked;
+  if (activeFilter === 'Complete' && !showCompleted) {
+    activeFilter = 'All';
+    renderFilters();
+  }
+  renderCards();
+});
 
 // ============================================
 // PIN AUTHENTICATION
