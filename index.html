@@ -215,7 +215,47 @@
       font-weight: 700;
     }
 
-    /* (filter buttons merged into summary chips) */
+    .chip-divider {
+      width: 1px;
+      height: 1.5rem;
+      background: #CCC;
+      margin: 0 0.15rem;
+      flex-shrink: 0;
+    }
+
+    /* ============================================
+       BUDGET TOGGLE
+       ============================================ */
+    .budget-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: none;
+      border: 1px solid #DDD;
+      border-radius: 8px;
+      padding: 0.3rem 0.7rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      cursor: pointer;
+      margin-bottom: 0.75rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .budget-toggle-btn:hover {
+      color: #555;
+      border-color: #AAA;
+    }
+
+    .budget-toggle-btn .arrow {
+      transition: transform 0.2s ease;
+      font-size: 0.6rem;
+    }
+
+    .budget-toggle-btn.open .arrow {
+      transform: rotate(180deg);
+    }
 
     /* ============================================
        PROJECT CARDS
@@ -605,6 +645,9 @@
 
     <main class="container">
       <div id="summary-chips" class="summary-chips"></div>
+      <button id="budget-toggle" class="budget-toggle-btn" style="display:none;">
+        <span class="arrow">&#9660;</span> Budget Overview
+      </button>
       <div id="budget-summary" class="budget-summary" style="display:none;"></div>
       <div class="toolbar">
         <label class="toggle-completed">
@@ -770,28 +813,43 @@ function escapeHtml(text) {
 function renderSummaryChips() {
   var container = document.getElementById('summary-chips');
   var counts = {};
-  var total = 0;
+  var activeTotal = 0;
   projects.forEach(function(p) {
     counts[p.status] = (counts[p.status] || 0) + 1;
-    total++;
+    if (p.status !== 'Complete') activeTotal++;
   });
 
+  // "All Active" chip — only counts non-completed projects
   var html = '<span class="summary-chip chip-all' + (activeFilter === 'All' ? ' active' : '') + '" data-filter="All">'
-    + '<span class="count">' + total + '</span> All'
+    + '<span class="count">' + activeTotal + '</span> Active'
     + '</span>';
 
+  // Active status chips
   STATUS_ORDER.forEach(function(s) {
-    if (!counts[s]) return;
+    if (!counts[s] || s === 'Complete') return;
     html += '<span class="summary-chip' + (activeFilter === s ? ' active' : '') + '" style="background:' + (STATUS_COLORS[s] || '#888') + '" data-filter="' + s + '">'
       + '<span class="count">' + counts[s] + '</span> ' + s
       + '</span>';
   });
+
+  // Divider + Complete chip (if any completed projects exist)
+  if (counts['Complete']) {
+    html += '<span class="chip-divider"></span>';
+    html += '<span class="summary-chip' + (activeFilter === 'Complete' ? ' active' : '') + '" style="background:' + STATUS_COLORS['Complete'] + '" data-filter="Complete">'
+      + '<span class="count">' + counts['Complete'] + '</span> Complete'
+      + '</span>';
+  }
 
   container.innerHTML = html;
 
   container.querySelectorAll('.summary-chip').forEach(function(chip) {
     chip.addEventListener('click', function() {
       activeFilter = chip.dataset.filter;
+      // If clicking Complete, auto-enable the toggle
+      if (activeFilter === 'Complete') {
+        showCompleted = true;
+        document.getElementById('show-completed').checked = true;
+      }
       renderSummaryChips();
       renderCards();
     });
@@ -822,8 +880,11 @@ function renderOverdueWarning() {
 // ============================================
 // RENDERING - BUDGET SUMMARY
 // ============================================
+var budgetVisible = false;
+
 function renderBudgetSummary() {
   var container = document.getElementById('budget-summary');
+  var toggleBtn = document.getElementById('budget-toggle');
   var totalBudgeted = 0, totalApproved = 0, totalActual = 0;
   var hasAny = false;
   projects.forEach(function(p) {
@@ -831,16 +892,27 @@ function renderBudgetSummary() {
     if (p.approved) { totalApproved += parseFloat(p.approved.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
     if (p.actual) { totalActual += parseFloat(p.actual.replace(/[^0-9.-]/g, '')) || 0; hasAny = true; }
   });
-  if (!hasAny) { container.style.display = 'none'; return; }
+  if (!hasAny) {
+    container.style.display = 'none';
+    toggleBtn.style.display = 'none';
+    return;
+  }
   var fmt = function(n) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
   };
-  container.style.display = 'grid';
+  toggleBtn.style.display = 'inline-flex';
+  container.style.display = budgetVisible ? 'grid' : 'none';
+  toggleBtn.className = budgetVisible ? 'budget-toggle-btn open' : 'budget-toggle-btn';
   container.innerHTML =
     '<div class="budget-summary-item"><div class="budget-summary-label">Total Budgeted</div><div class="budget-summary-value">' + fmt(totalBudgeted) + '</div></div>' +
     '<div class="budget-summary-item"><div class="budget-summary-label">Total Approved</div><div class="budget-summary-value">' + fmt(totalApproved) + '</div></div>' +
     '<div class="budget-summary-item"><div class="budget-summary-label">Total Spent</div><div class="budget-summary-value">' + fmt(totalActual) + '</div></div>';
 }
+
+document.getElementById('budget-toggle').addEventListener('click', function() {
+  budgetVisible = !budgetVisible;
+  renderBudgetSummary();
+});
 
 // ============================================
 // RENDERING - CARDS
